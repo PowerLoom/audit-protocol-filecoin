@@ -1,0 +1,5 @@
+fastapi
+pygate_grpc
+git+https://github.com/blockvigil/maticvigil-python-sdk.git
+eth_utils
+aioredis
