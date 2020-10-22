@@ -1,6 +1,6 @@
 from typing import Optional, Union
 from fastapi import Depends, FastAPI, WebSocket, HTTPException, Security, Request, Response, BackgroundTasks, Cookie, Query, WebSocketDisconnect
-from fastapi import status
+from fastapi import status, Header
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -98,7 +98,7 @@ async def startup_boilerplate():
 
 async def load_user_from_auth(
         request: Request = None
-) -> Union[str, None]:
+) -> Union[dict, None]:
     api_key_in_header = request.headers['Auth-Token'] if 'Auth-Token' in request.headers else None
     if not api_key_in_header:
         return None
@@ -110,7 +110,7 @@ async def load_user_from_auth(
     # rest_logger.debug(ffs_token)
     if ffs_token:
         ffs_token = ffs_token[0]
-    return ffs_token
+    return {'token': ffs_token, 'api_key': api_key_in_header}
 
 
 @app.post('/create')
@@ -149,7 +149,12 @@ async def all_payloads(
     api_key_extraction=Depends(load_user_from_auth),
     retrieval: Optional[str] = Query(None)
 ):
+    rest_logger.debug('Api key extraction')
+    rest_logger.debug(api_key_extraction)
     if not api_key_extraction:
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {'error': 'Forbidden'}
+    if not api_key_extraction['token']:
         response.status_code = status.HTTP_403_FORBIDDEN
         return {'error': 'Forbidden'}
     retrieval_mode = False
@@ -160,7 +165,7 @@ async def all_payloads(
             retrieval_mode = True
         elif retrieval == 'false':
             retrieval_mode = False
-    ffs_token = api_key_extraction
+    ffs_token = api_key_extraction['token']
     return_json = dict()
     if retrieval_mode:
         c = request.app.sqlite_cursor.execute("""
@@ -275,8 +280,9 @@ async def request_status(request: Request, requestId: str):
         return {'requestID': requestId, 'completed': bool(res_bulk[4]), "downloadFile": res_bulk[3]}
 
 
-@app.post('/verifyTODO')
-async def verify_records(
+@app.post('/')
+# @app.post('/jsonrpc/v1/{appID:str}')
+async def root(
         request: Request,
         response: Response,
         api_key_extraction=Depends(load_user_from_auth)
@@ -284,29 +290,14 @@ async def verify_records(
     if not api_key_extraction:
         response.status_code = status.HTTP_403_FORBIDDEN
         return {'error': 'Forbidden'}
-    req_json = await request.json()
-    claims = req_json['claims']
-    # list of {payload, recordCid, txHash}
-    processing_id = str(uuid4())
-
-
-@app.post('/')
-# @app.post('/jsonrpc/v1/{appID:str}')
-async def root(
-        request: Request,
-        response: Response,
-        bg_task: BackgroundTasks,
-        # app_id: Optional[str] = None,
-        api_key_extraction=Depends(load_user_from_auth)
-):
-    if not api_key_extraction:
+    if not api_key_extraction['token']:
         response.status_code = status.HTTP_403_FORBIDDEN
         return {'error': 'Forbidden'}
     pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
     # if request.method == 'POST':
     req_args = await request.json()
     payload = req_args['payload']
-    token = api_key_extraction
+    token = api_key_extraction['token']
     payload_bytes = BytesIO(json.dumps(payload).encode('utf-8'))
     payload_iter = bytes_to_chunks(payload_bytes)
     # adds to hot tier, IPFS
@@ -322,7 +313,7 @@ async def root(
     token_hash = '0x' + keccak(text=token).hex()
     tx_hash_obj = contract.commitRecordHash(**dict(
         payloadHash=payload_hash,
-        tokenHash=token_hash
+        apiKeyHash=token_hash
     ))
     tx_hash = tx_hash_obj[0]['txHash']
     rest_logger.debug('Committed record append to contract..')
