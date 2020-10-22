@@ -4,3 +4,4 @@ settings.json
 .python-version
 __pycache__/
 *.db
+static/**
