@@ -41,20 +41,22 @@ def main():
         password=settings['REDIS']['PASSWORD']
     )
     pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
+    awaited_deals = list()
     while True:
-        retr_req = r.brpop(['retrieval_requests_single', 'retrieval_requests_bulk'])
-        retrieval_worker_logger.debug(retr_req)
-        if retr_req[0].decode('utf-8') == 'retrieval_requests_single':
-            retrieval_request = json.loads(retr_req[1])
+        c = sqlite_cursor.execute("""
+            SELECT requestID, cid, localCID, retrievedFile FROM retrievals_single WHERE completed=0   
+        """)
+        single_retrieval_requests = c.fetchall()
+        for retrieval_request in single_retrieval_requests:
             retrieval_worker_logger.debug(retrieval_request)
-            local_cid = retrieval_request['localCID']
-            request_id = retrieval_request['requestId']
+            request_id = retrieval_request[0]
+            ffs_cid = retrieval_request[1]
+            local_cid = retrieval_request[2]
             s = sqlite_cursor.execute("""
-                SELECT cid, token FROM accounting_records WHERE localCID=?
+                SELECT token FROM accounting_records WHERE localCID=?
             """, (local_cid, ))
             res = s.fetchone()
-            ffs_cid = res[0]
-            token = res[1]
+            token = res[0]
             retrieval_worker_logger.debug("Retrieving file " + ffs_cid + " from FFS.")
             file_ = pow_client.ffs.get(ffs_cid, token)
             file_name = f'static/{request_id}'
@@ -63,9 +65,10 @@ def main():
                 for _ in file_:
                     f_.write(_)
             sqlite_cursor.execute("""
-                UPDATE retrievals SET retrievedFile=?, completed=1 WHERE requestID=?
-            """, (file_name, request_id))
+                UPDATE retrievals_single SET retrievedFile=?, completed=1 WHERE requestID=?
+            """, ('/'+file_name, request_id))
             sqlite_conn.commit()
+        time.sleep(5)
 
 
 if __name__ == '__main__':

@@ -151,39 +151,57 @@ async def record(request: Request, response:Response, recordCid: str):
     confirmed = res[0]
     real_cid = res[1]
     ffs_token = res[2]
-    pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
-    check = pow_client.ffs.info(real_cid, ffs_token)
-    rest_logger.debug(check)
-    request_id = str(uuid4())
-    if real_cid in check.info.pins:
-        rest_logger.info('CID Found in Pinned!')
+    # pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
+    # check = pow_client.ffs.info(real_cid, ffs_token)
+    # rest_logger.debug(check)
 
-        rest_logger.debug("Retrieving file " + real_cid + " from FFS.")
-        file_ = pow_client.ffs.get(real_cid, ffs_token)
-        file_name = f'static/{request_id}'
-        rest_logger.debug('Saving to ' + file_name)
-        with open(file_name, 'wb') as f_:
-            for _ in file_:
-                f_.write(_)
-        return {'requestId': request_id, 'downloadFile': file_name}
+    c = request.app.sqlite_cursor.execute("""
+        SELECT requestID FROM retrievals_single WHERE cid=?
+    """, (real_cid, ))
+    res = c.fetchone()
+    if res:
+        request_id = res[0]
+        return {'requestId': request_id, 'status': 'InProcess'}
+    else:
+        request_id = str(uuid4())
+    # if real_cid in check.info.pins:
+    #     rest_logger.info('CID Found in Pinned!')
+    #
+    #     rest_logger.debug("Retrieving file " + real_cid + " from FFS.")
+    #     file_ = pow_client.ffs.get(real_cid, ffs_token)
+    #     file_name = f'static/{request_id}'
+    #     rest_logger.debug('Saving to ' + file_name)
+    #     with open(file_name, 'wb') as f_:
+    #         for _ in file_:
+    #             f_.write(_)
+    #     return {'requestId': request_id, 'downloadFile': file_name}
     if confirmed == 0:
         # response.status_code = status.HTTP_404_NOT_FOUND
-        return {'requestId': None, 'error': 'NotPinnedYet'}
-    await request.app.redis_pool.lpush('retrieval_requests_single', json.dumps({'localCID': recordCid, 'requestId': request_id}))
-    request.app.sqlite_cursor.execute("""
-        INSERT INTO retrievals VALUES (?, "", 0)
-    """, (request_id, ))
-    request.app.sqlite_cursor.connection.commit()
-    return {'requestId': request_id}
+        status = 'PendingPinning'
+    elif confirmed == 1:
+        status = 'Pinned'
+    elif confirmed == 2:
+        status = 'PinFailed'
+    else:
+        status = 'unknown'
+    if confirmed in range(0, 2):
+        # await request.app.redis_pool.lpush('retrieval_requests_single', json.dumps({'localCID': recordCid, 'requestId': request_id}))
+        request.app.sqlite_cursor.execute("""
+            INSERT INTO retrievals_single VALUES (?, ?, ?, "", 0)
+        """, (request_id, real_cid, recordCid))
+        request.app.sqlite_cursor.connection.commit()
+        return {'requestId': request_id, 'status': status}
+    else:
+        return {'requestId': None, 'status': status}
 
 
 @app.get('/requests/{requestId:str}')
 async def request_status(request: Request, requestId: str):
     c = request.app.sqlite_cursor.execute('''
-        SELECT * FROM retrievals WHERE requestID=?
+        SELECT * FROM retrievals_single WHERE requestID=?
     ''', (requestId, ))
     res = c.fetchone()
-    return {'requestID': requestId, 'completed': bool(res[2]), "downloadFile": res[1]}
+    return {'requestID': requestId, 'completed': bool(res[4]), "downloadFile": res[3]}
 
 
 @app.post('/verify')

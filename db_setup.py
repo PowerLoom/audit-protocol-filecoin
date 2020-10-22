@@ -29,9 +29,11 @@ except sqlite3.OperationalError:
 
 
 try:
-    sqlite_cursor.execute('''CREATE TABLE retrievals 
+    sqlite_cursor.execute('''CREATE TABLE retrievals_single 
     (
-        requestID text, 
+        requestID text,
+        cid text,
+        localCID text,
         retrievedFile text, 
         completed integer
     )

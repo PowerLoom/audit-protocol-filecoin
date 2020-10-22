@@ -78,6 +78,11 @@ def job_checker():
                 deal_watcher_logger.error('Job failed. Removing from deals to be watched...')
                 deal_watcher_logger.error(j_stat.job)
                 done_deal_jids.append(deal_jid)
+                # update status
+                sqlite_cursor.execute("""
+                                    UPDATE accounting_records SET confirmed=2 WHERE cid=?            
+                                """, (deal['cid'],))
+                sqlite_cursor.connection.commit()
         for each_done_jid in done_deal_jids:
             del deals[each_done_jid]
         time.sleep(5)
