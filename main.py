@@ -312,7 +312,7 @@ async def root(
     rest_logger.debug('Cold tier finalization results:')
     rest_logger.debug(push_res)
     await request.app.redis_pool.publish_json('new_deals', {'cid': stage_res.cid, 'jid': push_res.job_id, 'token': token})
-    payload_hash = '0x' + keccak(text=json.dumps(payload)).hex()
+    payload_hash = '0x' + keccak(text=payload).hex()
     token_hash = '0x' + keccak(text=token).hex()
     tx_hash_obj = contract.commitRecordHash(**dict(
         payloadHash=payload_hash,
