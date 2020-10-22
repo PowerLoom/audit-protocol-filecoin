@@ -7,9 +7,9 @@ contract AuditRecordStore {
         uint256 timestamp;
     }
 
-    event RecordAppended(bytes32 tokenHash, bytes32 recordHash, uint256 indexed timestamp);
+    event RecordAppended(bytes32 apiKeyHash, bytes32 recordHash, uint256 indexed timestamp);
 
-    mapping(bytes32 => PayloadRecord[]) private tokenHashesToRecords;
+    mapping(bytes32 => PayloadRecord[]) private apiKeyHashToRecords;
 
 
     constructor() public {
@@ -18,11 +18,13 @@ contract AuditRecordStore {
 
     function commitRecordHash(bytes32 payloadHash, bytes32 apiKeyHash) public {
         PayloadRecord memory a = PayloadRecord(payloadHash, now);
-        tokenHashesToRecords[tokenHash].push(a);
-        emit RecordAppended(tokenHash, payloadHash, now);
+        apiKeyHashToRecords[apiKeyHash].push(a);
+        emit RecordAppended(apiKeyHash, payloadHash, now);
     }
 
+    /*
     function getTokenRecordLogs(bytes32 tokenHash) public view returns (PayloadRecord[] memory recordLogs) {
         return tokenHashesToRecords[tokenHash];
     }
+    */
 }
