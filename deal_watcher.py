@@ -9,6 +9,24 @@ import threading
 import fast_settings
 import queue
 import sqlite3
+import coloredlogs
+import logging
+import sys
+
+deal_watcher_logger = logging.getLogger(__name__)
+formatter = logging.Formatter(u"%(levelname)-8s %(name)-4s %(asctime)s,%(msecs)d %(module)s-%(funcName)s: %(message)s")
+
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setLevel(logging.DEBUG)
+# stdout_handler.setFormatter(formatter)
+
+stderr_handler = logging.StreamHandler(sys.stderr)
+stderr_handler.setLevel(logging.ERROR)
+
+deal_watcher_logger.addHandler(stdout_handler)
+deal_watcher_logger.addHandler(stderr_handler)
+coloredlogs.install(level='DEBUG', logger=deal_watcher_logger, stream=sys.stdout)
+
 
 with open('settings.json') as f:
     settings = json.load(f)
@@ -28,12 +46,12 @@ def main():
     while True:
         update = p.get_message(ignore_subscribe_messages=True)
         if update:
-            print('Got new deal update')
-            print(update)
+            deal_watcher_logger.debug('Got new deal update')
+            deal_watcher_logger.debug(update)
             deal_to_be_watched = json.loads(update['data'])
             deals[deal_to_be_watched['jid']] = deal_to_be_watched
-            print('Current Deals to be watched set')
-            print(deals)
+            deal_watcher_logger.debug('Current Deals to be watched set')
+            deal_watcher_logger.debug(deals)
         time.sleep(5)
 
 
@@ -48,13 +66,18 @@ def job_checker():
             j_stat = pow_client.ffs.get_storage_job(jid=deal['jid'], token=deal['token'])
             # print(j_stat.job)
             if j_stat.job.status == 5:  # 'JOB_STATUS_SUCCESS':
-                print('Hurrah. Removing from deals to be watched...')
+                deal_watcher_logger.debug('Hurrah. Removing from deals to be watched...')
+                deal_watcher_logger.debug(j_stat.job)
                 done_deal_jids.append(deal_jid)
                 # update status
                 sqlite_cursor.execute("""
                     UPDATE accounting_records SET confirmed=1 WHERE cid=?            
                 """, (deal['cid'], ))
                 sqlite_cursor.connection.commit()
+            elif j_stat.job.status == 3:
+                deal_watcher_logger.error('Job failed. Removing from deals to be watched...')
+                deal_watcher_logger.error(j_stat.job)
+                done_deal_jids.append(deal_jid)
         for each_done_jid in done_deal_jids:
             del deals[each_done_jid]
         time.sleep(5)

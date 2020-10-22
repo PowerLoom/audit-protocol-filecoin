@@ -2,3 +2,5 @@ fast_settings.py
 settings.json
 .idea/
 .python-version
+__pycache__/
+*.db

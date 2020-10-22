@@ -2,6 +2,7 @@ from typing import Optional, Union
 from fastapi import Depends, FastAPI, WebSocket, HTTPException, status, Security, Request, Response, BackgroundTasks, Cookie, Query, WebSocketDisconnect
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse, JSONResponse
 from pygate_grpc.client import PowerGateClient
 from pygate_grpc.ffs import get_file_bytes, bytes_to_chunks, chunks_to_bytes
@@ -43,6 +44,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+app.mount('/static', StaticFiles(directory='static'), name='static')
 
 evc = EVCore(verbose=True)
 contract = evc.generate_contract_sdk(
@@ -75,7 +77,7 @@ STORAGE_CONFIG = {
       "dealMinDuration": 518400,
       "renew": {
       },
-      "addr": "t3vwiyojfhcvrdijdgh3egk5vpajg5427uogfhzvtpbaf4a5sn2drahw5bfdk4pd4vg6baxxn3y4mtb7n6ll2q"
+      "addr": "placeholderstring"
     }
   }
 }
@@ -126,6 +128,7 @@ async def create_filecoin_filesystem(
         new_storage_config = STORAGE_CONFIG
         new_storage_config['cold']['filecoin']['addr'] = default_config.default_storage_config.cold.filecoin.addr
         new_storage_config['hot']['enabled'] = False
+        new_storage_config['hot']['allowUnfreeze'] = False
         pow_client.ffs.set_default_config(json.dumps(new_storage_config), new_ffs.token)
         rest_logger.debug('Set hot storage to False')
         rest_logger.debug(new_storage_config)
@@ -142,14 +145,31 @@ async def create_filecoin_filesystem(
 async def record(request: Request, response:Response, recordCid: str):
     # record_chain = contract.getTokenRecordLogs('0x'+keccak(text=tokenId).hex())
     c = request.app.sqlite_cursor.execute('''
-        SELECT confirmed FROM accounting_records WHERE localCID=?
-    ''', (recordCid, ))
-    res = c.fetchone()[0]
-    if res == 0:
+            SELECT confirmed, cid, token FROM accounting_records WHERE localCID=?
+        ''', (recordCid,))
+    res = c.fetchone()
+    confirmed = res[0]
+    real_cid = res[1]
+    ffs_token = res[2]
+    pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
+    check = pow_client.ffs.info(real_cid, ffs_token)
+    rest_logger.debug(check)
+    request_id = str(uuid4())
+    if real_cid in check.info.pins:
+        rest_logger.info('CID Found in Pinned!')
+
+        rest_logger.debug("Retrieving file " + real_cid + " from FFS.")
+        file_ = pow_client.ffs.get(real_cid, ffs_token)
+        file_name = f'static/{request_id}'
+        rest_logger.debug('Saving to ' + file_name)
+        with open(file_name, 'wb') as f_:
+            for _ in file_:
+                f_.write(_)
+        return {'requestId': request_id, 'downloadFile': file_name}
+    if confirmed == 0:
         # response.status_code = status.HTTP_404_NOT_FOUND
         return {'requestId': None, 'error': 'NotPinnedYet'}
-    request_id = str(uuid4())
-    await request.app.redis_pool.lpush('retrieval_requests', json.dumps({'localCID': recordCid, 'requestId': request_id}))
+    await request.app.redis_pool.lpush('retrieval_requests_single', json.dumps({'localCID': recordCid, 'requestId': request_id}))
     request.app.sqlite_cursor.execute("""
         INSERT INTO retrievals VALUES (?, "", 0)
     """, (request_id, ))
@@ -163,7 +183,22 @@ async def request_status(request: Request, requestId: str):
         SELECT * FROM retrievals WHERE requestID=?
     ''', (requestId, ))
     res = c.fetchone()
-    return {'requestID': requestId, 'completed': bool(res[2])}
+    return {'requestID': requestId, 'completed': bool(res[2]), "downloadFile": res[1]}
+
+
+@app.post('/verify')
+async def verify_records(
+        request: Request,
+        response: Response,
+        api_key_extraction=Depends(load_user_from_auth)
+):
+    if not api_key_extraction:
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {'error': 'Forbidden'}
+    req_json = await request.json()
+    claims = req_json['claims']
+    # list of {payload, recordCid, txHash}
+    processing_id = str(uuid4())
 
 
 @app.post('/')
@@ -194,24 +229,6 @@ async def root(
     rest_logger.debug('Cold tier finalization results:')
     rest_logger.debug(push_res)
     await request.app.redis_pool.publish_json('new_deals', {'cid': stage_res.cid, 'jid': push_res.job_id, 'token': token})
-    # storage_deals = pow_client.ffs.list_storage_deal_records(
-    #     include_pending=True, include_final=True, token=token
-    # )
-    #
-    # rest_logger.debug("Storage deals: ")
-    # for record in storage_deals.records:
-    #     rest_logger.debug(record)
-    #
-    # retrieval_deals = client.ffs.list_retrieval_deal_records(
-    #     include_pending=True, include_final=True, token=ffs.token
-    # )
-    # print("Retrieval deals: ")
-    # for record in retrieval_deals.records:
-    #     print(record)
-    #
-    # check = pow_client.ffs.info(stage_res.cid, token)
-    # rest_logger.debug('Pinning status:')
-    # rest_logger.debug(check)
     payload_hash = '0x' + keccak(text=json.dumps(payload)).hex()
     token_hash = '0x' + keccak(text=token).hex()
     tx_hash_obj = contract.commitRecordHash(**dict(

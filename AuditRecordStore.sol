@@ -16,7 +16,7 @@ contract AuditRecordStore {
 
     }
 
-    function commitRecordHash(bytes32 payloadHash, bytes32 tokenHash) public {
+    function commitRecordHash(bytes32 payloadHash, bytes32 apiKeyHash) public {
         PayloadRecord memory a = PayloadRecord(payloadHash, now);
         tokenHashesToRecords[tokenHash].push(a);
         emit RecordAppended(tokenHash, payloadHash, now);
