@@ -108,6 +108,44 @@
 				"description": "Use request ID obtained from initiating retrieval request on call to /payload"
 			},
 			"response": []
+		},
+		{
+			"name": "Get recordCids of all payloads. Optional retrieval mode.",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Auth-Token",
+						"value": "361b7bd0-a782-428c-bd24-76a8eb4309ba",
+						"type": "text"
+					},
+					{
+						"key": "",
+						"value": "",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"url": {
+					"raw": "http://localhost:9000/payloads?retrieval=true",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"payloads"
+					],
+					"query": [
+						{
+							"key": "retrieval",
+							"value": "true"
+						}
+					]
+				},
+				"description": "Pass Auth-Token in header"
+			},
+			"response": []
 		}
 	],
 	"protocolProfileBehavior": {}

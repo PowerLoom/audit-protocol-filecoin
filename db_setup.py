@@ -40,3 +40,29 @@ try:
 ''')
 except sqlite3.OperationalError:
     pass
+
+
+try:
+    sqlite_cursor.execute('''
+        CREATE TABLE retrievals_bulk
+        (
+            requestID text,
+            api_key text,
+            token text,
+            retrievedFile text,
+            completed integer
+        )
+    ''')
+except sqlite3.OperationalError:
+    pass
+
+try:
+    sqlite_conn.commit()
+except:
+    pass
+
+try:
+    sqlite_cursor.close()
+    sqlite_conn.close()
+except:
+    pass

@@ -32,6 +32,7 @@ with open('settings.json') as f:
     settings = json.load(f)
 
 deals = dict()
+deals_lock = threading.Lock()
 
 
 def main():
@@ -49,7 +50,9 @@ def main():
             deal_watcher_logger.debug('Got new deal update')
             deal_watcher_logger.debug(update)
             deal_to_be_watched = json.loads(update['data'])
+            deals_lock.acquire()
             deals[deal_to_be_watched['jid']] = deal_to_be_watched
+            deals_lock.release()
             deal_watcher_logger.debug('Current Deals to be watched set')
             deal_watcher_logger.debug(deals)
         time.sleep(5)
@@ -62,6 +65,7 @@ def job_checker():
     pow_client = PowerGateClient(fast_settings.config.powergate_url, False)
     while True:
         done_deal_jids = list()
+        deals_lock.acquire()
         for deal_jid, deal in deals.items():
             j_stat = pow_client.ffs.get_storage_job(jid=deal['jid'], token=deal['token'])
             # print(j_stat.job)
@@ -85,6 +89,7 @@ def job_checker():
                 sqlite_cursor.connection.commit()
         for each_done_jid in done_deal_jids:
             del deals[each_done_jid]
+        deals_lock.release()
         time.sleep(5)
 
 

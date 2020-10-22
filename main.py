@@ -1,5 +1,6 @@
 from typing import Optional, Union
-from fastapi import Depends, FastAPI, WebSocket, HTTPException, status, Security, Request, Response, BackgroundTasks, Cookie, Query, WebSocketDisconnect
+from fastapi import Depends, FastAPI, WebSocket, HTTPException, Security, Request, Response, BackgroundTasks, Cookie, Query, WebSocketDisconnect
+from fastapi import status
 from fastapi.security.api_key import APIKeyQuery, APIKeyHeader, APIKey
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -48,7 +49,7 @@ app.mount('/static', StaticFiles(directory='static'), name='static')
 
 evc = EVCore(verbose=True)
 contract = evc.generate_contract_sdk(
-    contract_address='0x5a07f5bdc9f82096948c53aee6fc19c4769ffb9d',
+    contract_address=fast_settings.config.audit_contract,
     app_name='auditrecords'
 )
 
@@ -141,6 +142,67 @@ async def create_filecoin_filesystem(
     return {'apiKey': api_key}
 
 
+@app.get('/payloads')
+async def all_payloads(
+    request: Request,
+    response: Response,
+    api_key_extraction=Depends(load_user_from_auth),
+    retrieval: Optional[str] = Query(None)
+):
+    if not api_key_extraction:
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {'error': 'Forbidden'}
+    retrieval_mode = False
+    if not retrieval:
+        retrieval_mode = False
+    else:
+        if retrieval == 'true':
+            retrieval_mode = True
+        elif retrieval == 'false':
+            retrieval_mode = False
+    ffs_token = api_key_extraction
+    return_json = dict()
+    if retrieval_mode:
+        c = request.app.sqlite_cursor.execute("""
+                SELECT requestID, completed FROM retrievals_bulk WHERE token=?
+            """, (ffs_token,))
+        res = c.fetchone()
+        if not res:
+            request_id = str(uuid4())
+            request_status = 'Queued'
+            request.app.sqlite_cursor.execute('''
+                INSERT INTO retrievals_bulk VALUES (?, ?, ?, "", 0)
+            ''', (request_id, api_key_extraction, ffs_token))
+            request.app.sqlite_cursor.connection.commit()
+        else:
+            request_id = res[0]
+            request_status = 'InProcess' if res[1] == 0 else 'Completed'
+        return_json.update({'requestId': request_id, 'requestStatus': request_status})
+    payload_list = list()
+    records_c = request.app.sqlite_cursor.execute('''
+                        SELECT cid, localCID, txHash, confirmed FROM accounting_records WHERE token=? 
+                    ''', (ffs_token,))
+    for record in records_c:
+        payload_obj = {
+            'recordCid': record[1],
+            'txHash': record[2]
+        }
+        confirmed = record[3]
+        if confirmed == 0:
+            # response.status_code = status.HTTP_404_NOT_FOUND
+            payload_status = 'PendingPinning'
+        elif confirmed == 1:
+            payload_status = 'Pinned'
+        elif confirmed == 2:
+            payload_status = 'PinFailed'
+        else:
+            payload_status = 'unknown'
+        payload_obj['status'] = payload_status
+        payload_list.append(payload_obj)
+    return_json.update({'payloads': payload_list})
+    return return_json
+
+
 @app.get('/payload/{recordCid:str}')
 async def record(request: Request, response:Response, recordCid: str):
     # record_chain = contract.getTokenRecordLogs('0x'+keccak(text=tokenId).hex())
@@ -182,19 +244,19 @@ async def record(request: Request, response:Response, recordCid: str):
     #     return {'requestId': request_id, 'downloadFile': file_name}
     if confirmed == 0:
         # response.status_code = status.HTTP_404_NOT_FOUND
-        status = 'PendingPinning'
+        payload_status = 'PendingPinning'
     elif confirmed == 1:
-        status = 'Pinned'
+        payload_status = 'Pinned'
     elif confirmed == 2:
-        status = 'PinFailed'
+        payload_status = 'PinFailed'
     else:
-        status = 'unknown'
+        payload_status = 'unknown'
     if confirmed in range(0, 2):
         request.app.sqlite_cursor.execute("""
             INSERT INTO retrievals_single VALUES (?, ?, ?, "", 0)
         """, (request_id, real_cid, recordCid))
         request.app.sqlite_cursor.connection.commit()
-    return {'requestId': request_id, 'requestStatus': request_status, 'payloadStatus': status}
+    return {'requestId': request_id, 'requestStatus': request_status, 'payloadStatus': payload_status}
 
 
 @app.get('/requests/{requestId:str}')
@@ -203,7 +265,14 @@ async def request_status(request: Request, requestId: str):
         SELECT * FROM retrievals_single WHERE requestID=?
     ''', (requestId, ))
     res = c.fetchone()
-    return {'requestID': requestId, 'completed': bool(res[4]), "downloadFile": res[3]}
+    if res:
+        return {'requestID': requestId, 'completed': bool(res[4]), "downloadFile": res[3]}
+    else:
+        c_bulk = request.app.sqlite_cursor.execute('''
+                SELECT * FROM retrievals_bulk WHERE requestID=?
+            ''', (requestId,))
+        res_bulk = c_bulk.fetchone()
+        return {'requestID': requestId, 'completed': bool(res_bulk[4]), "downloadFile": res_bulk[3]}
 
 
 @app.post('/verifyTODO')

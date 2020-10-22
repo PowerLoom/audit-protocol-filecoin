@@ -68,6 +68,33 @@ def main():
                 UPDATE retrievals_single SET retrievedFile=?, completed=1 WHERE requestID=?
             """, ('/'+file_name, request_id))
             sqlite_conn.commit()
+        # bulk retrievals
+        c = sqlite_cursor.execute("""
+                    SELECT requestID, api_key, token FROM retrievals_bulk WHERE completed=0   
+                """)
+        bulk_retrieval_requests = c.fetchall()
+        for bulk_retrieval_request in bulk_retrieval_requests:
+            retrieval_worker_logger.debug(bulk_retrieval_request)
+            request_id = bulk_retrieval_request[0]
+            api_key = bulk_retrieval_request[1]
+            ffs_token = bulk_retrieval_request[2]
+            records_c = sqlite_cursor.execute('''
+                    SELECT cid, localCID, txHash, confirmed FROM accounting_records WHERE token=? 
+                ''', (ffs_token,))
+            file_name = f'static/{request_id}'
+            fp = open(file_name, 'wb')
+            for each_record in records_c:
+                ffs_cid = each_record[0]
+                retrieval_worker_logger.debug("Bulk mode: Retrieving CID " + ffs_cid + " from FFS.")
+                file_ = pow_client.ffs.get(ffs_cid, ffs_token)
+                for _ in file_:
+                    fp.write(_)
+            fp.close()
+            sqlite_cursor.execute("""
+                            UPDATE retrievals_bulk SET retrievedFile=?, completed=1 WHERE requestID=?
+                        """, ('/' + file_name, request_id))
+            sqlite_conn.commit()
+            retrieval_worker_logger.debug('Bulk mode: Marking request ID ' + request_id + ' as completed')
         time.sleep(5)
 
 
