@@ -156,14 +156,19 @@ async def record(request: Request, response:Response, recordCid: str):
     # rest_logger.debug(check)
 
     c = request.app.sqlite_cursor.execute("""
-        SELECT requestID FROM retrievals_single WHERE cid=?
+        SELECT requestID, completed FROM retrievals_single WHERE cid=?
     """, (real_cid, ))
     res = c.fetchone()
     if res:
         request_id = res[0]
-        return {'requestId': request_id, 'status': 'InProcess'}
+        request_status = res[1]
+        if request_status == 0:
+            request_status = 'InProcess'
+        else:
+            request_status = 'Completed'
     else:
         request_id = str(uuid4())
+        request_status = 'Queued'
     # if real_cid in check.info.pins:
     #     rest_logger.info('CID Found in Pinned!')
     #
@@ -185,14 +190,11 @@ async def record(request: Request, response:Response, recordCid: str):
     else:
         status = 'unknown'
     if confirmed in range(0, 2):
-        # await request.app.redis_pool.lpush('retrieval_requests_single', json.dumps({'localCID': recordCid, 'requestId': request_id}))
         request.app.sqlite_cursor.execute("""
             INSERT INTO retrievals_single VALUES (?, ?, ?, "", 0)
         """, (request_id, real_cid, recordCid))
         request.app.sqlite_cursor.connection.commit()
-        return {'requestId': request_id, 'status': status}
-    else:
-        return {'requestId': None, 'status': status}
+    return {'requestId': request_id, 'requestStatus': request_status, 'payloadStatus': status}
 
 
 @app.get('/requests/{requestId:str}')
@@ -204,7 +206,7 @@ async def request_status(request: Request, requestId: str):
     return {'requestID': requestId, 'completed': bool(res[4]), "downloadFile": res[3]}
 
 
-@app.post('/verify')
+@app.post('/verifyTODO')
 async def verify_records(
         request: Request,
         response: Response,
