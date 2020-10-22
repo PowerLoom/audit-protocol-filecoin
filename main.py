@@ -177,7 +177,7 @@ async def all_payloads(
             request_status = 'Queued'
             request.app.sqlite_cursor.execute('''
                 INSERT INTO retrievals_bulk VALUES (?, ?, ?, "", 0)
-            ''', (request_id, api_key_extraction, ffs_token))
+            ''', (request_id, api_key_extraction['api_key'], ffs_token))
             request.app.sqlite_cursor.connection.commit()
         else:
             request_id = res[0]
