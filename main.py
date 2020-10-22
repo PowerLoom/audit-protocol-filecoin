@@ -19,6 +19,7 @@ import logging
 import sys
 import json
 import aioredis
+import time
 
 formatter = logging.Formatter(u"%(levelname)-8s %(name)-4s %(asctime)s,%(msecs)d %(module)s-%(funcName)s: %(message)s")
 
@@ -185,12 +186,14 @@ async def all_payloads(
         return_json.update({'requestId': request_id, 'requestStatus': request_status})
     payload_list = list()
     records_c = request.app.sqlite_cursor.execute('''
-                        SELECT cid, localCID, txHash, confirmed FROM accounting_records WHERE token=? 
+                        SELECT cid, localCID, txHash, confirmed, timestamp FROM accounting_records WHERE token=? 
+                        ORDER BY timestamp DESC 
                     ''', (ffs_token,))
     for record in records_c:
         payload_obj = {
             'recordCid': record[1],
-            'txHash': record[2]
+            'txHash': record[2],
+            'timestamp': record[4]
         }
         confirmed = record[3]
         if confirmed == 0:
@@ -320,8 +323,8 @@ async def root(
     rest_logger.debug(tx_hash_obj)
     local_id = str(uuid4())
     request.app.sqlite_cursor.execute('INSERT INTO accounting_records VALUES '
-                                      '(?, ?, ?, ?, ?)',
-                                      (token, stage_res.cid, local_id, tx_hash, 0))
+                                      '(?, ?, ?, ?, ?, ?)',
+                                      (token, stage_res.cid, local_id, tx_hash, 0, int(time.time())))
     request.app.sqlite_cursor.connection.commit()
     return {'commitTx': tx_hash, 'recordCid': local_id}
     # if request.method == 'GET':

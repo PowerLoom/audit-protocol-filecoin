@@ -21,7 +21,8 @@ try:
         cid text, 
         localCID text, 
         txHash text, 
-        confirmed integer
+        confirmed integer,
+        timestamp integer
     )
 ''')
 except sqlite3.OperationalError:
