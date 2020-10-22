@@ -301,7 +301,7 @@ async def root(
     req_args = await request.json()
     payload = req_args['payload']
     token = api_key_extraction['token']
-    payload_bytes = BytesIO(json.dumps(payload).encode('utf-8'))
+    payload_bytes = BytesIO(payload.encode('utf-8'))
     payload_iter = bytes_to_chunks(payload_bytes)
     # adds to hot tier, IPFS
     stage_res = pow_client.ffs.stage(payload_iter, token=token)
