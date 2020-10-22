@@ -1,15 +1,24 @@
 {
 	"info": {
-		"_postman_id": "2c4ef731-0bb1-4754-8286-584bb905b896",
+		"_postman_id": "bd82ded8-e64d-4a8d-a6c6-990a152048bc",
 		"name": "PowerLoom-PreAlpha",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "Create Token",
+			"name": "Create new API key",
 			"request": {
 				"method": "POST",
 				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"hotEnabled\": true}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
 				"url": {
 					"raw": "http://localhost:9000/create",
 					"protocol": "http",
@@ -20,18 +29,25 @@
 					"path": [
 						"create"
 					]
-				}
+				},
+				"description": "hotEnabled False causes troubles with localnet, it could not finalize the storage mining. Dafuq."
 			},
 			"response": []
 		},
 		{
-			"name": "Add to chain of records against token",
+			"name": "Commit payload",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "Auth-Token",
+						"value": "825579bf-f3d5-4794-b5c3-475b27134312",
+						"type": "text"
+					}
+				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"token\": \"b1b5b2f4-194e-480c-8daa-d4c138d77f58\",\n    \"payload\": {\"message\": \"test\"}\n}",
+					"raw": "{\n    \"payload\": [\n        {\n            \"inputs\": [\n                {\n                    \"components\": [\n                        {\n                            \"internalType\": \"habagaba\",\n                            \"name\": \"name\",\n                            \"type\": \"string\"\n                        },\n                        {\n                            \"internalType\": \"address\",\n                            \"name\": \"heirAddress\",\n                            \"type\": \"address\"\n                        }\n                    ],\n                    \"internalType\": \"struct uWillInterface.Heir[]\",\n                    \"name\": \"_heirs\",\n                    \"type\": \"tuple[]\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"constructor\"\n        },\n        {\n            \"anonymous\": false,\n            \"inputs\": [\n                {\n                    \"indexed\": true,\n                    \"internalType\": \"address\",\n                    \"name\": \"previousOwner\",\n                    \"type\": \"address\"\n                },\n                {\n                    \"indexed\": true,\n                    \"internalType\": \"address\",\n                    \"name\": \"newOwner\",\n                    \"type\": \"address\"\n                }\n            ],\n            \"name\": \"OwnershipTransferred\",\n            \"type\": \"event\"\n        },\n        {\n            \"anonymous\": false,\n            \"inputs\": [\n                {\n                    \"indexed\": false,\n                    \"internalType\": \"uint256\",\n                    \"name\": \"pingCount\",\n                    \"type\": \"uint256\"\n                }\n            ],\n            \"name\": \"Ping\",\n            \"type\": \"event\"\n        },\n        {\n            \"anonymous\": false,\n            \"inputs\": [\n                {\n                    \"indexed\": false,\n                    \"internalType\": \"string\",\n                    \"name\": \"collectingHeir\",\n                    \"type\": \"string\"\n                }\n            ],\n            \"name\": \"ShareCollected\",\n            \"type\": \"event\"\n        },\n        {\n            \"anonymous\": false,\n            \"inputs\": [],\n            \"name\": \"WillExecuted\",\n            \"type\": \"event\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"components\": [\n                        {\n                            \"internalType\": \"string\",\n                            \"name\": \"name\",\n                            \"type\": \"string\"\n                        },\n                        {\n                            \"internalType\": \"address\",\n                            \"name\": \"heirAddress\",\n                            \"type\": \"address\"\n                        }\n                    ],\n                    \"internalType\": \"struct uWillInterface.Heir\",\n                    \"name\": \"heir\",\n                    \"type\": \"tuple\"\n                }\n            ],\n            \"name\": \"addHeir\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": true,\n            \"inputs\": [],\n            \"name\": \"getPingCount\",\n            \"outputs\": [\n                {\n                    \"internalType\": \"uint8\",\n                    \"name\": \"totalPings\",\n                    \"type\": \"uint8\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"view\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": true,\n            \"inputs\": [],\n            \"name\": \"isOwner\",\n            \"outputs\": [\n                {\n                    \"internalType\": \"bool\",\n                    \"name\": \"\",\n                    \"type\": \"bool\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"view\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": true,\n            \"inputs\": [],\n            \"name\": \"owner\",\n            \"outputs\": [\n                {\n                    \"internalType\": \"address\",\n                    \"name\": \"\",\n                    \"type\": \"address\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"view\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [],\n            \"name\": \"ping\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"internalType\": \"address payable\",\n                    \"name\": \"_cEtherContractAddress\",\n                    \"type\": \"address\"\n                }\n            ],\n            \"name\": \"redeemFromCompound\",\n            \"outputs\": [\n                {\n                    \"internalType\": \"bool\",\n                    \"name\": \"redemptionSuccessful\",\n                    \"type\": \"bool\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"internalType\": \"string\",\n                    \"name\": \"heirName\",\n                    \"type\": \"string\"\n                }\n            ],\n            \"name\": \"removeHeir\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [],\n            \"name\": \"renounceOwnership\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [],\n            \"name\": \"resetPing\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"internalType\": \"address\",\n                    \"name\": \"heir\",\n                    \"type\": \"address\"\n                },\n                {\n                    \"internalType\": \"uint8\",\n                    \"name\": \"share\",\n                    \"type\": \"uint8\"\n                }\n            ],\n            \"name\": \"setShare\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"internalType\": \"address payable\",\n                    \"name\": \"_cEtherContractAddress\",\n                    \"type\": \"address\"\n                }\n            ],\n            \"name\": \"supplyToCompound\",\n            \"outputs\": [\n                {\n                    \"internalType\": \"bool\",\n                    \"name\": \"supplySuccessful\",\n                    \"type\": \"bool\"\n                }\n            ],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [\n                {\n                    \"internalType\": \"address\",\n                    \"name\": \"newOwner\",\n                    \"type\": \"address\"\n                }\n            ],\n            \"name\": \"transferOwnership\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [],\n            \"name\": \"unlockFunds\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        },\n        {\n            \"constant\": false,\n            \"inputs\": [],\n            \"name\": \"withdrawShare\",\n            \"outputs\": [],\n            \"payable\": false,\n            \"stateMutability\": \"nonpayable\",\n            \"type\": \"function\"\n        }\n    ]\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -45,27 +61,51 @@
 						"localhost"
 					],
 					"port": "9000"
-				}
+				},
+				"description": "pass Auth-Token in headers: apiKey obtained from create"
 			},
 			"response": []
 		},
 		{
-			"name": "Get chain of records stored against contract",
+			"name": "Initiate a retrieval request behind the scenes",
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:9000/recordChain/b1b5b2f4-194e-480c-8daa-d4c138d77f58",
+					"raw": "http://localhost:9000/payload/562d1d5a-5ccd-4470-bcdd-df40452ce3c2",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "9000",
 					"path": [
-						"recordChain",
-						"b1b5b2f4-194e-480c-8daa-d4c138d77f58"
+						"payload",
+						"562d1d5a-5ccd-4470-bcdd-df40452ce3c2"
 					]
-				}
+				},
+				"description": "Pass record CID obtained from committing payload from HTTP POST on /"
+			},
+			"response": []
+		},
+		{
+			"name": "Get request status update",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9000/requests/66f97e4e-23a9-46b9-95a8-fbbf21289cd3/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9000",
+					"path": [
+						"requests",
+						"66f97e4e-23a9-46b9-95a8-fbbf21289cd3",
+						""
+					]
+				},
+				"description": "Use request ID obtained from initiating retrieval request on call to /payload"
 			},
 			"response": []
 		}
