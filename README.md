@@ -14,7 +14,7 @@
 3. Setup account and deploy [contract](./AuditRecordStore.sol) on [MaticVigil](https://maticvigil.com/docs/)
 4. Setup redis.
 5. Clone [`settings.example.json`](./settings.example.json) to `settings.json` and [`fast_setting.example.py`](./fast_settings.example.py) to `fast_settings.py` with your values.
-6. Bring up [Powergate](https://github.com/textileio/powergate) Docker with localnet: `make localnet`
+6. Bring up [Powergate](https://github.com/textileio/powergate) Docker with [localnet](https://github.com/textileio/powergate/#localnet-mode): `make localnet`
 
 ### Scripts to Run
 
