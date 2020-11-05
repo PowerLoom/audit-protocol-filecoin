@@ -2,7 +2,7 @@
 
 ## [Write up](./AuditProtocol-EthOnline2020.pdf)
 
-## [Demo](https://www.youtube.com/watch?v=yKn1JPr8G7o)
+## [Demo Video](https://www.youtube.com/watch?v=c1-fvf0wQ0A)
 
 
 ## Backend
